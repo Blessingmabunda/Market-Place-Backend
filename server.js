@@ -7,6 +7,8 @@ const productRoutes = require('./routes/Products');
 const advertRoutes = require('./routes/Advert'); 
 const messegeRoutes = require('./routes/Messege');
 const ratingsRoutes = require('./routes/Ratings');
+const notificationRoutes = require('./routes/Notification'); // Adjust the path as needed
+
 
 
 const app = express();
@@ -46,6 +48,8 @@ app.use('/api', productRoutes); // Use product routes
 app.use('/api', advertRoutes); // Use advert routes
 app.use('/api', messegeRoutes); 
 app.use('/api', ratingsRoutes); 
+app.use('/api', notificationRoutes); 
+
 
 // Example route with logging
 app.post('/upload', upload.any(), (req, res, next) => {
