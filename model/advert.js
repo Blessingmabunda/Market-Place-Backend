@@ -3,9 +3,7 @@ const mongoose = require('mongoose');
 // Define the Advert schema
 const advertSchema = new mongoose.Schema({
   userId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User', // Assumes there is a User model to reference
-    required: true
+    type: String,
   },
   image: {
     type: String, // Store the Base64-encoded image string here

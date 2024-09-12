@@ -12,8 +12,6 @@ router.post('/add-products', upload.single('image'), async (req, res) => {
   try {
     const { userId, productName, price, category, location, image } = req.body;
 
-   
-
     const newProduct = new Product({
       userId,
       productName,
@@ -58,6 +56,19 @@ router.get('/products-by-user/:userId', async (req, res) => {
     const products = await Product.find({ userId: userId });
 
     if (products.length === 0) return res.status(404).json({ message: 'No products found for this user' });
+    res.status(200).json(products);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Get products by category
+router.get('/products-by-category/:category', async (req, res) => {
+  try {
+    const category = req.params.category;
+    const products = await Product.find({ category: category });
+
+    if (products.length === 0) return res.status(404).json({ message: 'No products found in this category' });
     res.status(200).json(products);
   } catch (error) {
     res.status(500).json({ message: error.message });

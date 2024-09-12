@@ -8,7 +8,7 @@ const storage = multer.memoryStorage(); // Store images in memory (you might wan
 const upload = multer({ storage: storage });
 
 // Create a new advert
-router.post('/adverts', upload.single('image'), async (req, res) => {
+router.post('/add-adverts', upload.single('image'), async (req, res) => {
   try {
     // Extract userId and image from request body and file respectively
     const { userId } = req.body;
@@ -29,7 +29,7 @@ router.post('/adverts', upload.single('image'), async (req, res) => {
 });
 
 // Get all adverts
-router.get('/adverts', async (req, res) => {
+router.get('/get-adverts', async (req, res) => {
   try {
     const adverts = await Advert.find();
     res.status(200).json(adverts);
@@ -39,7 +39,7 @@ router.get('/adverts', async (req, res) => {
 });
 
 // Get a single advert by ID
-router.get('/adverts/:id', async (req, res) => {
+router.get('/get-adverts/:id', async (req, res) => {
   try {
     const advert = await Advert.findById(req.params.id);
     if (!advert) return res.status(404).json({ error: 'Advert not found' });
@@ -50,7 +50,7 @@ router.get('/adverts/:id', async (req, res) => {
 });
 
 // Update an advert by ID
-router.put('/adverts/:id', async (req, res) => {
+router.put('/update-adverts/:id', async (req, res) => {
   try {
     const advert = await Advert.findByIdAndUpdate(req.params.id, req.body, { new: true });
     if (!advert) return res.status(404).json({ error: 'Advert not found' });
@@ -61,7 +61,7 @@ router.put('/adverts/:id', async (req, res) => {
 });
 
 // Delete an advert by ID
-router.delete('/adverts/:id', async (req, res) => {
+router.delete('/delete-adverts/:id', async (req, res) => {
   try {
     const advert = await Advert.findByIdAndDelete(req.params.id);
     if (!advert) return res.status(404).json({ error: 'Advert not found' });
