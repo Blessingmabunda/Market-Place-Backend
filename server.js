@@ -8,8 +8,7 @@ const advertRoutes = require('./routes/Advert');
 const messegeRoutes = require('./routes/Messege');
 const ratingsRoutes = require('./routes/Ratings');
 const notificationRoutes = require('./routes/Notification'); // Adjust the path as needed
-
-
+const notificationsettingsRoutes = require('./routes/Settings'); 
 
 const app = express();
 app.use(express.json());
@@ -49,6 +48,7 @@ app.use('/api', advertRoutes); // Use advert routes
 app.use('/api', messegeRoutes); 
 app.use('/api', ratingsRoutes); 
 app.use('/api', notificationRoutes); 
+app.use('/api', notificationsettingsRoutes); 
 
 
 // Example route with logging
