@@ -6,12 +6,26 @@ const messageSchema = new mongoose.Schema({
     trim: true, // Trims any whitespace around the content
   },
   sender: {
-    type: String,
-    trim: true, 
+    userId: {
+      type: String, // Storing userId as a simple string
+      required: true, // Ensure the sender's userId is always included
+    },
+    username: {
+      type: String,
+      trim: true, // Trims any whitespace around the username
+      required: true, // Ensure the sender's username is always included
+    }
   },
   recipient: {
-    type: String,
-    trim: true, 
+    userId: {
+      type: String, // Storing recipient userId as a simple string
+      required: true, // Ensure the recipient's userId is always included
+    },
+    username: {
+      type: String,
+      trim: true, // Trims any whitespace around the username
+      required: true, // Ensure the recipient's username is always included
+    }
   },
   timestamp: {
     type: Date,

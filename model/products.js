@@ -1,12 +1,38 @@
 const mongoose = require('mongoose');
 
 const productSchema = new mongoose.Schema({
-  userId: { type: String, required: true, trim: true },
-  productName: { type: String, trim: true },
-  price: { type: Number },
-  category: { type: String, trim: true },
-  location: { type: String, trim: true },
-  image: { type: String } // Base64-encoded image string
+  userId: {
+    type: String,
+    required: true 
+  },
+  productName: {
+    type: String,
+    required: true 
+  },
+  price: {
+    type: String,
+    required: true 
+  },
+  location: {
+    type: String
+  },
+  category: {
+    type: String
+  },
+  base64Image: {
+    type: String
+  },
+  username: {
+    type: String
+  },
+  profilePicture: {
+    type: String
+  },
+  phoneNumber: {
+    type: String, // You can use String type for the phone number
+    required: true // Optional: If phone number is mandatory, set this to true
+  }
 });
 
-module.exports = mongoose.model('Product', productSchema);
+const Product = mongoose.model('Product', productSchema);
+module.exports = Product;
