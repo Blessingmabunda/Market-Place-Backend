@@ -28,7 +28,6 @@ router.post('/products', async (req, res) => {
   }
 });
 
-
 // Route to get all products
 router.get('/get-all-products', async (req, res) => {
   try {
@@ -39,7 +38,7 @@ router.get('/get-all-products', async (req, res) => {
   }
 });
 
-// Route to get a single product by ID
+// Route to get a product by ID
 router.get('/products/:id', async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
@@ -94,6 +93,53 @@ router.delete('/delete-all-products', async (req, res) => {
     res.status(200).json({ message: 'All products deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete all products' });
+  }
+});
+
+// Route to get products by userId
+router.get('/products/user/:userId', async (req, res) => {
+  try {
+    const products = await Product.find({ userId: req.params.userId });
+    if (products.length === 0) {
+      return res.status(404).json({ error: 'No products found for this user' });
+    }
+    res.status(200).json(products);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch products by userId' });
+  }
+});
+
+// Route to update products by userId
+router.put('/products/user/:userId', async (req, res) => {
+  try {
+    const { productName, price, location, category, base64Image, phoneNumber } = req.body;
+
+    const updatedProducts = await Product.updateMany(
+      { userId: req.params.userId },
+      { productName, price, location, category, base64Image, phoneNumber }
+    );
+
+    if (updatedProducts.nModified === 0) {
+      return res.status(404).json({ error: 'No products found for this user or no changes made' });
+    }
+
+    res.status(200).json({ message: 'Products updated successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update products by userId' });
+  }
+});
+
+// Route to delete products by userId
+router.delete('/products/user/:userId', async (req, res) => {
+  try {
+    const deletedProducts = await Product.deleteMany({ userId: req.params.userId });
+    if (deletedProducts.deletedCount === 0) {
+      return res.status(404).json({ error: 'No products found for this user' });
+    }
+
+    res.status(200).json({ message: 'Products deleted successfully for this user' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete products by userId' });
   }
 });
 

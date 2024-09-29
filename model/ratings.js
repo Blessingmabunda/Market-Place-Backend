@@ -19,6 +19,10 @@ const ratingSchema = new Schema({
   comment: {
     type: String,
     trim: true
+  },
+  image: { // New field for the image
+    type: String,
+    trim: true
   }
 }, {
   timestamps: true // Optional
