@@ -1,6 +1,7 @@
+const { MongoClient, ServerApiVersion } = require('mongodb');
 const express = require('express');
 const mongoose = require('mongoose');
-const multer = require('multer'); 
+const multer = require('multer');
 
 // Import routes
 const userRoutes = require('./routes/User'); 
@@ -15,7 +16,6 @@ const app = express();
 
 // Middleware to parse JSON and URL-encoded data
 app.use(express.json({ limit: '1000mb' })); // Increase limit to 10MB
-
 app.use(express.urlencoded({ limit: '100mb', extended: true })); // Parse URL-encoded data
 
 // Configure multer for file uploads
@@ -36,15 +36,39 @@ const upload = multer({
   }
 });
 
-// Connect to MongoDB using environment variables for security
-mongoose
-.connect('mongodb+srv://blessie999:Mabunda@blessingapi.vbplv.mongodb.net/blessAPI?retryWrites=true&w=majority&appName=BlessingAPI', {})
-  .then(() => {
-    console.log('Connected to MongoDB');
-  })
-  .catch((error) => {
-    console.error('Error connecting to MongoDB:', error);
-  });
+// Connect to MongoDB using MongoClient
+const uri = "mongodb+srv://blessie999:Mabunda@blessingapi.vbplv.mongodb.net/?retryWrites=true&w=majority&appName=BlessingAPI";
+const client = new MongoClient(uri, {
+  serverApi: {
+    version: ServerApiVersion.v1,
+    strict: true,
+    deprecationErrors: true,
+  }
+});
+
+async function run() {
+  try {
+    await client.connect();
+    // Send a ping to confirm a successful connection
+    await client.db("admin").command({ ping: 1 });
+    console.log("Pinged your deployment. You successfully connected to MongoDB!");
+
+    // Connect using Mongoose as well
+    mongoose
+      .connect('mongodb+srv://blessie999:Mabunda@blessingapi.vbplv.mongodb.net/blessAPI?retryWrites=true&w=majority&appName=BlessingAPI', {})
+      .then(() => {
+        console.log('Mongoose: Connected to MongoDB');
+      })
+      .catch((error) => {
+        console.error('Mongoose: Error connecting to MongoDB:', error);
+      });
+
+  } finally {
+    // We won't close the MongoClient here so it can be used throughout the app
+    // await client.close(); // Commented out to keep connection alive for the app
+  }
+}
+run().catch(console.dir);
 
 // Use routes
 app.use('/api', userRoutes);
