@@ -1,6 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const multer = require('multer'); 
+const cors = require('cors'); // Add this line
 
 // Import routes
 const userRoutes = require('./routes/User'); 
@@ -14,8 +15,11 @@ const notificationSettingsRoutes = require('./routes/Settings');
 const app = express();
 
 // Middleware to parse JSON and URL-encoded data
-app.use(express.json({ limit: '1000mb' })); // Increase limit to 10MB
+app.use(cors({
+  origin: '*',  // Temporarily allow all origins (adjust for production)
+}));
 
+app.use(express.json({ limit: '1000mb' })); // Increase limit to 10MB
 app.use(express.urlencoded({ limit: '100mb', extended: true })); // Parse URL-encoded data
 
 // Configure multer for file uploads
