@@ -19,7 +19,7 @@ app.use(cors({
   origin: '*',  // Temporarily allow all origins (adjust for production)
 }));
 
-app.use(express.json({ limit: '1000mb' })); // Increase limit to 10MB
+app.use(express.json({ limit: '1000mb' })); // Increase limit to 1000MB
 app.use(express.urlencoded({ limit: '100mb', extended: true })); // Parse URL-encoded data
 
 // Configure multer for file uploads
@@ -41,8 +41,7 @@ const upload = multer({
 });
 
 // Connect to MongoDB using environment variables for security
-mongoose
-.connect('mongodb+srv://blessie999:Mabunda@blessingapi.vbplv.mongodb.net/blessAPI?retryWrites=true&w=majority&appName=BlessingAPI', {})
+mongoose.connect('mongodb+srv://blessie999:Mabunda@blessingapi.vbplv.mongodb.net/blessAPI?retryWrites=true&w=majority&appName=BlessingAPI', {})
   .then(() => {
     console.log('Connected to MongoDB');
   })
@@ -58,6 +57,11 @@ app.use('/api', messageRoutes);
 app.use('/api', ratingsRoutes); 
 app.use('/api', notificationRoutes); 
 app.use('/api', notificationSettingsRoutes); 
+
+// Example test route for troubleshooting
+app.get('/api/test', (req, res) => {
+  res.send('Test route working!');
+});
 
 // Example route for file uploads with logging
 app.post('/upload', upload.any(), (req, res) => {
