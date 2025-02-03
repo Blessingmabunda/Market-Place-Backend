@@ -19,18 +19,12 @@ const productSchema = new mongoose.Schema({
   category: {
     type: String
   },
-  base64Image: {
-    type: String
-  },
   username: {
     type: String
   },
-  profilePicture: {
-    type: String
-  },
   phoneNumber: {
-    type: String, // You can use String type for the phone number
-    required: true // Optional: If phone number is mandatory, set this to true
+    type: String,
+    required: true
   }
 });
 

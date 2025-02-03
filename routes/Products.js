@@ -5,7 +5,7 @@ const Product = require('../model/products'); // Import the Product model
 // Route to create a new product
 router.post('/products', async (req, res) => {
   try {
-    const { username, profilePicture, userId, productName, price, location, category, base64Image, phoneNumber } = req.body;
+    const { username, userId, productName, price, location, category, phoneNumber } = req.body;
 
     // Create and save product
     const product = new Product({
@@ -14,10 +14,8 @@ router.post('/products', async (req, res) => {
       price,
       location,
       category,
-      base64Image,
       username,
-      profilePicture,
-      phoneNumber // Include the phone number here
+      phoneNumber
     });
 
     await product.save();
@@ -54,11 +52,11 @@ router.get('/products/:id', async (req, res) => {
 // Route to update a product by ID
 router.put('/products/:id', async (req, res) => {
   try {
-    const { name, price, description } = req.body;
+    const { productName, price, location, category, phoneNumber } = req.body;
 
     const product = await Product.findByIdAndUpdate(
       req.params.id,
-      { name, price, description },
+      { productName, price, location, category, phoneNumber },
       { new: true }
     );
 
@@ -112,11 +110,11 @@ router.get('/products/user/:userId', async (req, res) => {
 // Route to update products by userId
 router.put('/products/user/:userId', async (req, res) => {
   try {
-    const { productName, price, location, category, base64Image, phoneNumber } = req.body;
+    const { productName, price, location, category, phoneNumber } = req.body;
 
     const updatedProducts = await Product.updateMany(
       { userId: req.params.userId },
-      { productName, price, location, category, base64Image, phoneNumber }
+      { productName, price, location, category, phoneNumber }
     );
 
     if (updatedProducts.nModified === 0) {

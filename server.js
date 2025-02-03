@@ -6,6 +6,7 @@ const cors = require('cors'); // Add this line
 // Import routes
 const userRoutes = require('./routes/User'); 
 const productRoutes = require('./routes/Products'); 
+const productPictureRoutes = require('./routes/productPicture'); 
 const advertRoutes = require('./routes/Advert'); 
 const messageRoutes = require('./routes/Messege');
 const ratingsRoutes = require('./routes/Ratings');
@@ -53,6 +54,7 @@ mongoose
 // Use routes
 app.use('/api', userRoutes);
 app.use('/api', productRoutes);
+app.use('/api', productPictureRoutes);
 app.use('/api', advertRoutes);
 app.use('/api', messageRoutes); 
 app.use('/api', ratingsRoutes); 
