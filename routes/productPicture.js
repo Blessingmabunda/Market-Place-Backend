@@ -3,28 +3,67 @@ const router = express.Router();
 const Product = require('../model/products');  // Import the Product model
 const ProductPicture = require('../model/productPicture'); 
 
+
+// sequelize.sync({ force: false }) // Use { force: true } to drop and recreate the table if needed
+//   .then(() => {
+//     console.log('ProductPicture table created successfully!');
+//   })
+//   .catch((error) => {
+//     console.error('Error creating ProductPicture table:', error);
+//   });
+
 // Route to add a product picture
 router.post('/product-pictures', async (req, res) => {
     try {
         const { productId, base64 } = req.body;
 
+        if (!productId || !base64) {
+            return res.status(400).json({ error: 'Missing productId or base64 data' });
+        }
+
         // Create a new picture with the provided productId and base64
-        const newPicture = new ProductPicture({ productId, base64 });
-        await newPicture.save();
+        const newPicture = await ProductPicture.create({ productId, base64 });
 
         // Respond with a success message and the saved picture
         res.status(201).json({ message: 'Picture added successfully', picture: newPicture });
     } catch (error) {
         console.error(error);  // Log the actual error for debugging
-        res.status(500).json({ error: 'Failed to add picture' });
+        res.status(500).json({ error: error.message || 'Failed to add picture' });
     }
 });
 
 
+// Route to get all product pictures
+router.get('/product-pictures', async (req, res) => {
+    try {
+        const pictures = await ProductPicture.findAll();
+        if (pictures.length === 0) {
+            return res.status(404).json({ error: 'No pictures found' });
+        }
+        res.json(pictures);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to retrieve pictures' });
+    }
+});
+
+// Route to get product pictures by productId
+router.get('/product-pictures/product/:productId', async (req, res) => {
+    console.log('Requested Product ID:', req.params.productId); // Log the ID to ensure it's correct
+    try {
+        const pictures = await ProductPicture.findAll({ where: { productId: req.params.productId } });
+        if (pictures.length === 0) {
+            return res.status(404).json({ error: 'No pictures found for this product' });
+        }
+        res.json(pictures);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to retrieve pictures by productId' });
+    }
+});
+
 // Route to get a product picture by ID
 router.get('/product-pictures/:id', async (req, res) => {
     try {
-        const picture = await ProductPicture.findById(req.params.id);
+        const picture = await ProductPicture.findByPk(req.params.id);
         if (!picture) {
             return res.status(404).json({ error: 'Picture not found' });
         }
@@ -38,15 +77,12 @@ router.get('/product-pictures/:id', async (req, res) => {
 router.put('/product-pictures/:id', async (req, res) => {
     try {
         const { base64 } = req.body;
-        const updatedPicture = await ProductPicture.findByIdAndUpdate(
-            req.params.id,
-            { base64 },
-            { new: true }
-        );
-        if (!updatedPicture) {
-            return res.status(404).json({ error: 'Picture not found' });
+        const [updated] = await ProductPicture.update({ base64 }, { where: { id: req.params.id } });
+        if (updated) {
+            const updatedPicture = await ProductPicture.findByPk(req.params.id);
+            return res.json({ message: 'Picture updated successfully', picture: updatedPicture });
         }
-        res.json({ message: 'Picture updated successfully', picture: updatedPicture });
+        throw new Error('Picture not found');
     } catch (error) {
         res.status(500).json({ error: 'Failed to update picture' });
     }
@@ -55,13 +91,26 @@ router.put('/product-pictures/:id', async (req, res) => {
 // Route to delete a product picture
 router.delete('/product-pictures/:id', async (req, res) => {
     try {
-        const deletedPicture = await ProductPicture.findByIdAndDelete(req.params.id);
-        if (!deletedPicture) {
-            return res.status(404).json({ error: 'Picture not found' });
+        const deleted = await ProductPicture.destroy({ where: { id: req.params.id } });
+        if (deleted) {
+            return res.json({ message: 'Picture deleted successfully' });
         }
-        res.json({ message: 'Picture deleted successfully' });
+        throw new Error('Picture not found');
     } catch (error) {
         res.status(500).json({ error: 'Failed to delete picture' });
+    }
+});
+
+// Route to delete all product pictures
+router.delete('/product-pictures', async (req, res) => {
+    try {
+        const deletedCount = await ProductPicture.destroy({ where: {} });
+        if (deletedCount > 0) {
+            return res.json({ message: 'All pictures deleted successfully' });
+        }
+        return res.status(404).json({ error: 'No pictures found to delete' });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to delete pictures' });
     }
 });
 

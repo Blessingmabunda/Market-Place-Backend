@@ -1,7 +1,9 @@
 const express = require('express');
-const mongoose = require('mongoose');
-const multer = require('multer'); 
-const cors = require('cors'); // Add this line
+const mysql = require('mysql2');
+const multer = require('multer');
+const cors = require('cors');
+const { Sequelize } = require('sequelize');  // Import Sequelize
+require('dotenv').config(); // Load environment variables from .env file
 
 // Import routes
 const userRoutes = require('./routes/User'); 
@@ -15,68 +17,91 @@ const notificationSettingsRoutes = require('./routes/Settings');
 
 const app = express();
 
-// Middleware to parse JSON and URL-encoded data
-app.use(cors({
-  origin: '*',  // Temporarily allow all origins (adjust for production)
-}));
+// Middleware
+app.use(cors({ origin: '*' })); // Adjust for production security
+app.use(express.json({ limit: '100000mb' }));
+app.use(express.urlencoded({ limit: '100mb', extended: true }));
 
-app.use(express.json({ limit: '1000mb' })); // Increase limit to 10MB
-app.use(express.urlencoded({ limit: '100mb', extended: true })); // Parse URL-encoded data
-
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, 'uploads/'); // Set upload destination
-  },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + '-' + file.originalname); // Unique file name
+// Set up Sequelize connection
+const sequelize = new Sequelize(
+  process.env.DB_NAME || 'Blessing', 
+  process.env.DB_USER || 'root', 
+  process.env.DB_PASS || 'Mabunda@99', 
+  {
+    host: process.env.DB_HOST || 'localhost',
+    dialect: 'mysql',
   }
+);
+
+// Sync the database (ensure models are defined before this step)
+sequelize.sync({ alter: true })
+  .then(() => {
+    console.log('Database synced');
+  })
+  .catch((err) => {
+    console.error('Error syncing database:', err);
+  });
+
+// Set up MySQL connection
+const db = mysql.createConnection({
+  host: process.env.DB_HOST || 'localhost',
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASS || 'Mabunda@99', // Set your MySQL password
+  database: process.env.DB_NAME || 'Blessing'
+});
+
+// Connect to MySQL
+db.connect(err => {
+  if (err) {
+    console.error('Error connecting to MySQL:', err);
+    return;
+  }
+  console.log('Connected to MySQL database');
+});
+
+// Configure Multer for file uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, 'uploads/'),
+  filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
 });
 
 const upload = multer({
   storage: storage,
-  limits: {
-    fileSize: 10 * 1024 * 1024, // 10 MB limit for files
-    fieldSize: 1 * 1024 * 1024, // 1 MB limit for form fields
-  }
+  limits: { fileSize: 10 * 1024 * 1024, fieldSize: 1 * 1024 * 1024 }
 });
-
-// Connect to MongoDB using environment variables for security
-mongoose
-.connect('mongodb+srv://blessie999:Mabunda@blessingapi.vbplv.mongodb.net/blessAPI?retryWrites=true&w=majority&appName=BlessingAPI', {})
-  .then(() => {
-    console.log('Connected to MongoDB');
-  })
-  .catch((error) => {
-    console.error('Error connecting to MongoDB:', error);
-  });
 
 // Use routes
 app.use('/api', userRoutes);
 app.use('/api', productRoutes);
 app.use('/api', productPictureRoutes);
 app.use('/api', advertRoutes);
-app.use('/api', messageRoutes); 
-app.use('/api', ratingsRoutes); 
-app.use('/api', notificationRoutes); 
-app.use('/api', notificationSettingsRoutes); 
+app.use('/api', messageRoutes);
+app.use('/api', ratingsRoutes);
+app.use('/api', notificationRoutes);
+app.use('/api', notificationSettingsRoutes);
 
-// Example route for file uploads with logging
+// Example API Route using MySQL
+app.get('/api/users', (req, res) => {
+  db.query('SELECT * FROM users', (err, results) => {
+    if (err) {
+      console.error('Error fetching users:', err);
+      return res.status(500).json({ error: 'Database query failed' });
+    }
+    res.json(results);
+  });
+});
+
+// File upload route
 app.post('/upload', upload.any(), (req, res) => {
   console.log('Received fields:', req.body);
   console.log('Received files:', req.files);
   res.send('Files and fields received');
 });
 
-// General error-handling middleware for multer and other errors
+// Error handling
 app.use((err, req, res, next) => {
-  if (err instanceof multer.MulterError) {
-    console.error('Multer Error:', err);
-    return res.status(400).send('File or field value too large');
-  } else {
-    console.error('Server Error:', err);
-    return res.status(500).send('An error occurred');
-  }
+  console.error('Error:', err);
+  return res.status(500).send('An error occurred');
 });
 
 // Start the server
