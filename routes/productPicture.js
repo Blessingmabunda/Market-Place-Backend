@@ -1,37 +1,27 @@
 const express = require('express');
 const router = express.Router();
-const Product = require('../model/products');  // Import the Product model
-const ProductPicture = require('../model/productPicture'); 
-
-
-// sequelize.sync({ force: false }) // Use { force: true } to drop and recreate the table if needed
-//   .then(() => {
-//     console.log('ProductPicture table created successfully!');
-//   })
-//   .catch((error) => {
-//     console.error('Error creating ProductPicture table:', error);
-//   });
+const ProductPicture = require('../model/productPicture'); // Import the ProductPicture model
 
 // Route to add a product picture
 router.post('/product-pictures', async (req, res) => {
     try {
         const { productId, base64 } = req.body;
 
+        // Validate required fields
         if (!productId || !base64) {
             return res.status(400).json({ error: 'Missing productId or base64 data' });
         }
 
-        // Create a new picture with the provided productId and base64
+        // Create a new picture using the ProductPicture model
         const newPicture = await ProductPicture.create({ productId, base64 });
 
-        // Respond with a success message and the saved picture
+        // Respond with success and the saved picture
         res.status(201).json({ message: 'Picture added successfully', picture: newPicture });
     } catch (error) {
-        console.error(error);  // Log the actual error for debugging
+        console.error(error);  // Log the error for debugging
         res.status(500).json({ error: error.message || 'Failed to add picture' });
     }
 });
-
 
 // Route to get all product pictures
 router.get('/product-pictures', async (req, res) => {
@@ -48,7 +38,7 @@ router.get('/product-pictures', async (req, res) => {
 
 // Route to get product pictures by productId
 router.get('/product-pictures/product/:productId', async (req, res) => {
-    console.log('Requested Product ID:', req.params.productId); // Log the ID to ensure it's correct
+    console.log('Requested Product ID:', req.params.productId); // Log the ID for debugging
     try {
         const pictures = await ProductPicture.findAll({ where: { productId: req.params.productId } });
         if (pictures.length === 0) {
@@ -61,15 +51,21 @@ router.get('/product-pictures/product/:productId', async (req, res) => {
 });
 
 // Route to get a product picture by ID
-router.get('/product-pictures/:id', async (req, res) => {
+router.get('/product-pictures/:productId', async (req, res) => {
     try {
-        const picture = await ProductPicture.findByPk(req.params.id);
-        if (!picture) {
-            return res.status(404).json({ error: 'Picture not found' });
+        const { productId } = req.params;
+        const pictures = await ProductPicture.findAll({
+            where: { productId }
+        });
+
+        if (pictures.length === 0) {
+            return res.status(404).json({ message: 'No pictures found for this product' });
         }
-        res.json(picture);
+
+        res.json(pictures);
     } catch (error) {
-        res.status(500).json({ error: 'Failed to retrieve picture' });
+        console.error('Error fetching product pictures:', error);
+        res.status(500).json({ message: 'Server error' });
     }
 });
 
