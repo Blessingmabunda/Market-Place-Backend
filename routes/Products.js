@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Product = require('../model/products'); // Import the Product model
-
+const sequelize = require('../ds');
 // Route to create a new product
 router.post('/products', async (req, res) => {
   try {
@@ -29,10 +29,11 @@ router.post('/products', async (req, res) => {
 // Route to get all products
 router.get('/get-all-products', async (req, res) => {
   try {
-    const products = await Product.find();
-    res.status(200).json(products);
+    const [results, metadata] = await sequelize.query("SELECT * FROM Blessing.Products;");
+    res.status(200).json(results);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch products' });
+    console.error('Error fetching products:', error);
+    res.status(500).json({ error: 'Failed to fetch products', details: error.message });
   }
 });
 
