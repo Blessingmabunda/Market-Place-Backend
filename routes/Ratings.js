@@ -1,7 +1,8 @@
 const express = require('express');
+const sequelize = require('../ds'); // Remove the destructuring
 const router = express.Router();
-const mongoose = require('mongoose');
-const Rating = require('../model/ratings'); // Adjust path as needed
+const { Op } = require('sequelize');
+const Rating = require('../model/ratings');
 
 // Create a new rating
 router.post('/add-ratings', async (req, res) => {
@@ -10,41 +11,35 @@ router.post('/add-ratings', async (req, res) => {
         const { product, rating, comment, image } = req.body;
 
         // Create a new rating
-        const newRating = new Rating({
+        const newRating = await Rating.create({
             product,
             rating,
             comment,
             image,
         });
 
-        // Save the rating to the database
-        await newRating.save();
-
         // Respond with the newly created rating
         res.status(201).json(newRating);
     } catch (error) {
-        // Respond with validation or server error
-        if (error.name === 'ValidationError') {
-            return res.status(400).json({ error: error.message });
-        }
-        res.status(500).json({ error: 'Internal Server Error' });
+        res.status(500).json({ error: error.message });
     }
 });
 
 // Get all ratings
 router.get('/ratings', async (req, res) => {
     try {
-        const ratings = await Rating.find().populate('product'); // Populate to get product details
-        res.status(200).json(ratings);
+      const ratings = await Rating.findAll();
+      res.status(200).json(ratings); // Return ratings in the response
     } catch (error) {
-        res.status(500).json({ error: error.message });
+      console.error('Error fetching ratings:', error);
+      res.status(500).json({ error: 'An error occurred while fetching ratings' });
     }
-});
+  });
 
 // Get a single rating by ID
 router.get('/ratings/:id', async (req, res) => {
     try {
-        const rating = await Rating.findById(req.params.id).populate('product');
+        const rating = await Rating.findByPk(req.params.id);
         if (!rating) {
             return res.status(404).json({ error: 'Rating not found' });
         }
@@ -57,11 +52,14 @@ router.get('/ratings/:id', async (req, res) => {
 // Update a rating by ID
 router.put('/ratings/:id', async (req, res) => {
     try {
-        const rating = await Rating.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
-        if (!rating) {
+        const [updated] = await Rating.update(req.body, {
+            where: { id: req.params.id },
+        });
+        if (!updated) {
             return res.status(404).json({ error: 'Rating not found' });
         }
-        res.status(200).json(rating);
+        const updatedRating = await Rating.findByPk(req.params.id);
+        res.status(200).json(updatedRating);
     } catch (error) {
         res.status(400).json({ error: error.message });
     }
@@ -70,8 +68,8 @@ router.put('/ratings/:id', async (req, res) => {
 // Delete a rating by ID
 router.delete('/ratings/:id', async (req, res) => {
     try {
-        const rating = await Rating.findByIdAndDelete(req.params.id);
-        if (!rating) {
+        const deleted = await Rating.destroy({ where: { id: req.params.id } });
+        if (!deleted) {
             return res.status(404).json({ error: 'Rating not found' });
         }
         res.status(200).json({ message: 'Rating deleted successfully' });
@@ -83,41 +81,53 @@ router.delete('/ratings/:id', async (req, res) => {
 // Delete all ratings
 router.delete('/ratings', async (req, res) => {
     try {
-        await Rating.deleteMany(); // Deletes all ratings
+        await Rating.destroy({ where: {} }); // Deletes all ratings
         res.status(200).json({ message: 'All ratings deleted successfully' });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
 
-// Get average rating for a product
-router.get('/ratings/summary/:productId', async (req, res) => {
+// Add this before your routes
+sequelize.authenticate()
+  .then(() => console.log('Database connection successful'))
+  .catch(err => console.error('Database connection error:', err));
+
+
+router.get('/ratings/stats/:product', async (req, res) => {
     try {
-        const productId = req.params.productId;
+        const productStats = await Rating.findAll({
+            where: {
+                product: req.params.product
+            },
+            attributes: [
+                [sequelize.fn('MAX', sequelize.col('rating')), 'highestRating'],
+                [sequelize.fn('COUNT', sequelize.col('id')), 'totalRatings'],
+                [sequelize.fn('AVG', sequelize.col('rating')), 'averageRating']
+            ]
+        });
 
-        const ratingSummary = await Rating.aggregate([
-            { $match: { product: mongoose.Types.ObjectId(productId) } }, // Match ratings for the specified product
-            {
-                $group: {
-                    _id: '$product',
-                    averageRating: { $avg: '$rating' },
-                    count: { $sum: 1 }
-                }
-            }
-        ]);
-
-        if (ratingSummary.length === 0) {
-            return res.status(404).json({ message: 'No ratings found for this product' });
+        // If no ratings found for the product
+        if (!productStats[0].dataValues.totalRatings) {
+            return res.status(404).json({
+                error: 'No ratings found for this product'
+            });
         }
 
-        const summary = ratingSummary[0];
-        res.status(200).json({
-            productId: summary._id,
-            averageRating: summary.averageRating.toFixed(2), // Format to 2 decimal places
-            totalRatings: summary.count
-        });
+        // Format the response
+        const stats = {
+            product: req.params.product,
+            highestRating: parseFloat(productStats[0].dataValues.highestRating),
+            totalRatings: parseInt(productStats[0].dataValues.totalRatings),
+            averageRating: parseFloat(productStats[0].dataValues.averageRating).toFixed(1)
+        };
+
+        res.status(200).json(stats);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Error fetching rating statistics:', error);
+        res.status(500).json({
+            error: 'An error occurred while fetching rating statistics'
+        });
     }
 });
 

@@ -1,33 +1,39 @@
-const mongoose = require('mongoose');
-const Schema = mongoose.Schema;
+const { DataTypes } = require('sequelize');
+const sequelize = require('../ds');
 
-const ratingSchema = new Schema({
+const Rating = sequelize.define('Rating', {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true
+  },
   product: {
-    type: String,
-    trim: true
+    type: DataTypes.STRING,
+    allowNull: false,
+    validate: {
+      notEmpty: true
+    }
   },
   rating: {
-    type: Number,
-    required: [true, 'Rating is required'],
-    min: [1, 'Rating must be at least 1'],
-    max: [5, 'Rating must be at most 5'],
+    type: DataTypes.INTEGER,
+    allowNull: false,
     validate: {
-      validator: Number.isInteger,
-      message: 'Rating must be an integer between 1 and 5'
+      min: 1,
+      max: 5,
+      isInt: true
     }
   },
   comment: {
-    type: String,
-    trim: true
+    type: DataTypes.STRING,
+    allowNull: true
   },
-  image: { // New field for the image
-    type: String,
-    trim: true
+  image: {
+    type: DataTypes.TEXT,
+    allowNull: true
   }
 }, {
-  timestamps: true // Optional
+  timestamps: false,
+  tableName: 'ratings'
 });
-
-const Rating = mongoose.model('Rating', ratingSchema);
 
 module.exports = Rating;
