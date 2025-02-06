@@ -14,7 +14,7 @@ const messageRoutes = require('./routes/Messege');
 const ratingsRoutes = require('./routes/Ratings');
 const notificationRoutes = require('./routes/Notification'); 
 const notificationSettingsRoutes = require('./routes/Settings'); 
-
+const FavouriteProduct = require('./routes/favouriteProducts'); 
 const app = express();
 
 // Middleware
@@ -79,6 +79,7 @@ app.use('/api', messageRoutes);
 app.use('/api', ratingsRoutes);
 app.use('/api', notificationRoutes);
 app.use('/api', notificationSettingsRoutes);
+app.use('/api', FavouriteProduct);
 
 // Example API Route using MySQL
 app.get('/api/users', (req, res) => {
