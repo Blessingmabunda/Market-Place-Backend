@@ -23,12 +23,11 @@ router.post('/register', async (req, res) => {
 
     res.status(201).json({ message: 'User registered successfully', user });
   } catch (error) {
-    console.error('User already registrered ', error.message);
+    console.error('User already registered ', error.message);
     res.status(500).json({ error: error.message });
   }
 });
 
-// Login Route
 // Login Route
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
@@ -69,7 +68,6 @@ router.post('/login', async (req, res) => {
     res.status(500).json({ message: 'Server error', error });
   }
 });
-
 
 // Get Login History Route
 router.get('/login-history/:userId', async (req, res) => {
@@ -204,6 +202,31 @@ router.put('/update-profile', async (req, res) => {
     res.status(200).json({ message: 'Profile updated successfully', user });
   } catch (error) {
     res.status(500).json({ message: 'Error updating profile', error });
+  }
+});
+
+// Get Profile Picture by User ID Route
+router.get('/profile-picture/:userId', async (req, res) => {
+  const { userId } = req.params;
+
+  // Check if userId is a valid number (since it's an INTEGER in your model)
+  if (isNaN(userId)) {
+    return res.status(400).json({ message: 'Invalid user ID' });
+  }
+
+  try {
+    const user = await User.findByPk(userId, {
+      attributes: ['profilePicture'], // Only fetch the profilePicture field
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.status(200).json({ profilePicture: user.profilePicture });
+  } catch (error) {
+    console.error('Error fetching profile picture:', error); // Log the full error
+    res.status(500).json({ message: 'Error fetching profile picture', error: error.message }); // Include error message in response
   }
 });
 
