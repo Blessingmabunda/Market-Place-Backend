@@ -106,32 +106,24 @@ router.delete('/users', async (req, res) => {
 });
 
 // Change Password Route
-router.post('/change-password', async (req, res) => {
-  const { userId, currentPassword, newPassword, confirmPassword } = req.body;
-
+router.put('/change-password', async (req, res) => {
   try {
-    if (newPassword !== confirmPassword) {
-      return res.status(400).json({ error: 'New passwords do not match' });
-    }
+      const { userId, currentPassword, newPassword, confirmPassword } = req.body;
+      if (newPassword !== confirmPassword) {
+          return res.status(400).json({ message: 'New passwords do not match' });
+      }
 
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
+      const user = await User.findByPk(userId);
+      if (!user) return res.status(404).json({ message: 'User not found' });
 
-    const isMatch = await bcrypt.compare(currentPassword, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ message: 'Current password is incorrect' });
-    }
+      const isMatch = await bcrypt.compare(currentPassword, user.password);
+      if (!isMatch) return res.status(400).json({ message: 'Current password is incorrect' });
 
-    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
-    user.password = hashedNewPassword;
-
-    await user.save();
-
-    res.status(200).json({ message: 'Password changed successfully' });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+      user.password = await bcrypt.hash(newPassword, 10);
+      await user.save();
+      res.json({ message: 'Password changed successfully' });
+  } catch (err) {
+      res.status(500).json({ error: err.message });
   }
 });
 
@@ -182,52 +174,63 @@ router.post('/reset-password', async (req, res) => {
   }
 });
 
-// Update User Profile Route
-router.put('/update-profile', async (req, res) => {
-  const { userId, username, email, profilePicture } = req.body;
 
+
+
+router.put('/updateProfile', async (req, res) => {
   try {
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+    const { id, username, email, profilePicture } = req.body;
+
+    // Validate request body
+    if (!id) {
+      return res.status(400).json({ error: 'User ID is required' });
     }
 
-    // Update user properties
+    // Find the user by ID
+    const user = await User.findByPk(id);
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Update fields if provided in the request body
     if (username) user.username = username;
     if (email) user.email = email;
-    if (profilePicture) user.profilePicture = profilePicture; // Store as string
+    if (profilePicture) user.profilePicture = profilePicture;
 
+    // Save the updated user data
     await user.save();
 
-    res.status(200).json({ message: 'Profile updated successfully', user });
-  } catch (error) {
-    res.status(500).json({ message: 'Error updating profile', error });
+    res.json({ message: 'User updated successfully', user });
+  } catch (err) {
+    console.error('Error updating user:', err);
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
-// Get Profile Picture by User ID Route
 router.get('/profile-picture/:userId', async (req, res) => {
-  const { userId } = req.params;
-
-  // Check if userId is a valid number (since it's an INTEGER in your model)
-  if (isNaN(userId)) {
-    return res.status(400).json({ message: 'Invalid user ID' });
-  }
+  const userId = req.params.userId;
 
   try {
-    const user = await User.findByPk(userId, {
-      attributes: ['profilePicture'], // Only fetch the profilePicture field
+    // Fetch user by ID
+    const user = await User.findOne({
+      where: { id: userId },
+      attributes: ['profilePicture'] // Only retrieve profilePicture
     });
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    res.status(200).json({ profilePicture: user.profilePicture });
-  } catch (error) {
-    console.error('Error fetching profile picture:', error); // Log the full error
-    res.status(500).json({ message: 'Error fetching profile picture', error: error.message }); // Include error message in response
+    // Send the profile picture URL (or path)
+    return res.status(200).json({
+      profilePicture: user.profilePicture || 'No profile picture available'
+    });
+  } catch (err) {
+    console.error('Error fetching profile picture:', err);
+    return res.status(500).json({ message: 'Server error' });
   }
 });
+
 
 module.exports = router;
