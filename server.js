@@ -4,6 +4,9 @@ const multer = require('multer');
 const cors = require('cors');
 const { Sequelize } = require('sequelize');  // Import Sequelize
 require('dotenv').config(); // Load environment variables from .env file
+// const stripe = require('stripe')('YOUR_STRIPE_SECRET_KEY');
+// require('dotenv').config();
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 // Import routes
 const userRoutes = require('./routes/User'); 
@@ -80,6 +83,38 @@ app.use('/api', ratingsRoutes);
 app.use('/api', notificationRoutes);
 app.use('/api', notificationSettingsRoutes);
 app.use('/api', FavouriteProduct);
+
+//payment method 
+
+app.post('/create-payment-link', async (req, res) => {
+  const { productName, price } = req.body;
+
+  try {
+    // Create a Price object
+    const priceObject = await stripe.prices.create({
+      currency: 'zar',
+      unit_amount: price * 100, // Convert price to cents
+      product_data: {
+        name: productName,
+      },
+    });
+
+    // Create a payment link
+    const paymentLink = await stripe.paymentLinks.create({
+      line_items: [
+        {
+          price: priceObject.id,
+          quantity: 1,
+        },
+      ],
+    });
+
+    res.json({ paymentLink: paymentLink.url });
+  } catch (err) {
+    console.error('Error creating payment link:', err);
+    res.status(500).json({ error: 'Failed to create payment link' });
+  }
+});
 
 // Example API Route using MySQL
 app.get('/api/users', (req, res) => {
