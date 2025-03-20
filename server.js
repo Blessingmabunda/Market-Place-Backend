@@ -87,34 +87,56 @@ app.use('/api', FavouriteProduct);
 //payment method 
 
 app.post('/create-payment-link', async (req, res) => {
-  const { productName, price } = req.body;
+  const { cart_items, total_amount, user_info, payment_method, order_date } = req.body;
 
   try {
-    // Create a Price object
-    const priceObject = await stripe.prices.create({
-      currency: 'zar',
-      unit_amount: price * 100, // Convert price to cents
-      product_data: {
-        name: productName,
-      },
-    });
+    // Create line items for each cart item
+    const lineItems = [];
 
-    // Create a payment link
+    // For each item, create the corresponding Stripe product and price
+    for (const item of cart_items) {
+      // Create a product for each item with metadata
+      const product = await stripe.products.create({
+        name: item.name,
+        description: item.category,
+        images: [item.imageBase64],
+        metadata: { location: item.location }, // Adding location as metadata
+      });
+
+      // Create a price for each item
+      const price = await stripe.prices.create({
+        unit_amount: item.price * 100, // Convert price to cents
+        currency: 'zar',
+        product: product.id,
+      });
+
+      // Push the line item with the corresponding price ID and quantity
+      lineItems.push({
+        price: price.id,
+        quantity: item.quantity,
+      });
+    }
+
+    // Create a payment link with multiple line items (cart items)
     const paymentLink = await stripe.paymentLinks.create({
-      line_items: [
-        {
-          price: priceObject.id,
-          quantity: 1,
-        },
-      ],
+      line_items: lineItems,
     });
 
-    res.json({ paymentLink: paymentLink.url });
+    // Send response with the payment link URL
+    res.json({
+      paymentLink: paymentLink.url, // This is the actual Stripe payment link
+    });
   } catch (err) {
     console.error('Error creating payment link:', err);
     res.status(500).json({ error: 'Failed to create payment link' });
   }
 });
+
+
+
+
+
+
 
 // Example API Route using MySQL
 app.get('/api/users', (req, res) => {
