@@ -4,9 +4,8 @@ const multer = require('multer');
 const cors = require('cors');
 const { Sequelize } = require('sequelize');  // Import Sequelize
 require('dotenv').config(); // Load environment variables from .env file
-// const stripe = require('stripe')('YOUR_STRIPE_SECRET_KEY');
-// require('dotenv').config();
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET; // Use environment variable for webhook secret
 
 // Import routes
 const userRoutes = require('./routes/User'); 
@@ -18,6 +17,7 @@ const ratingsRoutes = require('./routes/Ratings');
 const notificationRoutes = require('./routes/Notification'); 
 const notificationSettingsRoutes = require('./routes/Settings'); 
 const FavouriteProduct = require('./routes/favouriteProducts'); 
+
 const app = express();
 
 // Middleware
@@ -27,11 +27,11 @@ app.use(express.urlencoded({ limit: '100mb', extended: true }));
 
 // Set up Sequelize connection
 const sequelize = new Sequelize(
-  process.env.DB_NAME || 'Blessing', 
-  process.env.DB_USER || 'root', 
-  process.env.DB_PASS || 'Mabunda@99', 
+  process.env.DB_NAME, 
+  process.env.DB_USER, 
+  process.env.DB_PASS, 
   {
-    host: process.env.DB_HOST || 'localhost',
+    host: process.env.DB_HOST,
     dialect: 'mysql',
   }
 );
@@ -45,12 +45,12 @@ sequelize.sync({ alter: true })
     console.error('Error syncing database:', err);
   });
 
-// Set up MySQL connection
+// Set up MySQL connection (if you still need it alongside Sequelize)
 const db = mysql.createConnection({
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASS || 'Mabunda@99', // Set your MySQL password
-  database: process.env.DB_NAME || 'Blessing'
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASS, 
+  database: process.env.DB_NAME
 });
 
 // Connect to MySQL
@@ -84,48 +84,47 @@ app.use('/api', notificationRoutes);
 app.use('/api', notificationSettingsRoutes);
 app.use('/api', FavouriteProduct);
 
-//payment method 
-
+// Payment method 
 app.post('/create-payment-link', async (req, res) => {
   const { cart_items, total_amount, user_info, payment_method, order_date } = req.body;
 
   try {
-    // Create line items for each cart item
     const lineItems = [];
 
-    // For each item, create the corresponding Stripe product and price
     for (const item of cart_items) {
-      // Create a product for each item with metadata
       const product = await stripe.products.create({
         name: item.name,
         description: item.category,
         images: [item.imageBase64],
-        metadata: { location: item.location }, // Adding location as metadata
+        metadata: { location: item.location }, // Metadata stored in Product
       });
 
-      // Create a price for each item
       const price = await stripe.prices.create({
         unit_amount: item.price * 100, // Convert price to cents
         currency: 'zar',
         product: product.id,
       });
 
-      // Push the line item with the corresponding price ID and quantity
       lineItems.push({
         price: price.id,
         quantity: item.quantity,
       });
     }
 
-    // Create a payment link with multiple line items (cart items)
-    const paymentLink = await stripe.paymentLinks.create({
-      line_items: lineItems,
-    });
+    // **Attach metadata to the PaymentIntent**
+ const paymentLink = await stripe.paymentLinks.create({
+  line_items: lineItems,
+  metadata: {
+    user_id: user_info.user_id,
+    name: user_info.name,
+    total_amount: total_amount.toString(),
+    order_date: order_date,
+    cart_summary: JSON.stringify(cart_items),
+  },
+});
 
-    // Send response with the payment link URL
-    res.json({
-      paymentLink: paymentLink.url, // This is the actual Stripe payment link
-    });
+
+    res.json({ paymentLink: paymentLink.url });
   } catch (err) {
     console.error('Error creating payment link:', err);
     res.status(500).json({ error: 'Failed to create payment link' });
@@ -133,9 +132,66 @@ app.post('/create-payment-link', async (req, res) => {
 });
 
 
+app.post('/get-payment-history', async (req, res) => {
+  try {
+    // Fetch all PaymentIntents
+    const payments = await stripe.paymentIntents.list({
+      limit: 100, // Adjust the limit as needed
+    });
+
+    // Extract necessary fields, including metadata
+    const formattedPayments = payments.data.map(payment => ({
+      id: payment.id,
+      amount: payment.amount,
+      currency: payment.currency,
+      status: payment.status,
+      created: payment.created,
+      metadata: payment.metadata, // Include metadata
+      payment_method: payment.payment_method,
+      description: payment.description,
+    }));
+
+    res.json({ payments: formattedPayments });
+  } catch (err) {
+    console.error('Error fetching payment history:', err);
+    res.status(500).json({ error: 'Failed to retrieve payment history' });
+  }
+});
 
 
 
+app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  const sig = req.headers['stripe-signature'];
+
+  let event;
+
+  try {
+    event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+  } catch (err) {
+    console.error('Webhook signature verification failed:', err);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  // Log the event to verify it's being called
+  console.log('Received event:', event);
+
+  // Handle the event as usual
+  switch (event.type) {
+    case 'payment_intent.succeeded':
+      // Handle the event for successful payment
+      console.log('Payment Intent Succeeded:', event.data.object);
+      break;
+    case 'payment_intent.payment_failed':
+      // Handle the event for failed payment
+      console.log('Payment Intent Failed:', event.data.object);
+      break;
+    default:
+      console.log(`Unhandled event type: ${event.type}`);
+  }
+
+  // Acknowledge receipt of the event
+  res.json({ received: true });
+});
 
 
 // Example API Route using MySQL
