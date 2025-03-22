@@ -130,8 +130,27 @@ app.post('/create-payment-link', async (req, res) => {
     res.status(500).json({ error: 'Failed to create payment link' });
   }
 });
-
-
+app.get('/get-all-payment-links-metadata', async (req, res) => {
+  try {
+    // List all payment links
+    // You can add optional parameters like limit
+    const paymentLinks = await stripe.paymentLinks.list({
+      limit: 100, // Adjust as needed
+    });
+    
+    // Extract metadata from each payment link
+    const metadataCollection = paymentLinks.data.map(link => ({
+      id: link.id,
+      url: link.url,
+      metadata: link.metadata
+    }));
+    
+    res.json({ paymentLinks: metadataCollection });
+  } catch (err) {
+    console.error('Error retrieving payment links:', err);
+    res.status(500).json({ error: 'Failed to retrieve payment links metadata' });
+  }
+});
 app.post('/get-payment-history', async (req, res) => {
   try {
     // Fetch all PaymentIntents
@@ -158,7 +177,67 @@ app.post('/get-payment-history', async (req, res) => {
   }
 });
 
-
+app.get('/get-payment-links-by-user', async (req, res) => {
+  try {
+    // Get userId from query parameter
+    const { userId } = req.query;
+    
+    if (!userId) {
+      return res.status(400).json({ error: 'Missing userId parameter' });
+    }
+    
+    // List all payment links
+    const paymentLinks = await stripe.paymentLinks.list({
+      limit: 100, // Adjust as needed
+    });
+    
+    // Filter links by user_id in metadata (note the underscore)
+    const userPaymentLinks = paymentLinks.data.filter(link => 
+      link.metadata && link.metadata.user_id === userId
+    );
+    
+    // Extract relevant data including cart summary
+    const metadataCollection = userPaymentLinks.map(link => {
+      // Safely handle cart_summary parsing
+      let cartSummary = [];
+      try {
+        if (link.metadata.cart_summary) {
+          cartSummary = JSON.parse(link.metadata.cart_summary);
+        }
+      } catch (e) {
+        console.error('Error parsing cart_summary:', e);
+        cartSummary = link.metadata.cart_summary; // Keep as string if parsing fails
+      }
+      
+      // Safe date formatting
+      let createdDate = null;
+      try {
+        if (link.created) {
+          createdDate = new Date(link.created * 1000).toISOString();
+        }
+      } catch (e) {
+        console.error('Error formatting date:', e);
+        createdDate = link.created; // Keep original value if conversion fails
+      }
+      
+      return {
+        id: link.id,
+        url: link.url,
+        active: link.active,
+        created: createdDate,
+        metadata: link.metadata,
+        cart_summary: cartSummary,
+        order_date: link.metadata.order_date,
+        total_amount: link.metadata.total_amount
+      };
+    });
+    
+    res.json({ paymentLinks: metadataCollection });
+  } catch (err) {
+    console.error('Error retrieving payment links:', err);
+    res.status(500).json({ error: 'Failed to retrieve payment links for user', message: err.message });
+  }
+});
 
 app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
   const sig = req.headers['stripe-signature'];
