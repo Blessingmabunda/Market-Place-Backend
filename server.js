@@ -151,29 +151,57 @@ app.get('/get-all-payment-links-metadata', async (req, res) => {
     res.status(500).json({ error: 'Failed to retrieve payment links metadata' });
   }
 });
-app.post('/get-payment-history', async (req, res) => {
+app.get('/get-payment-links-by-user', async (req, res) => {
   try {
-    // Fetch all PaymentIntents
-    const payments = await stripe.paymentIntents.list({
-      limit: 100, // Adjust the limit as needed
-    });
+    const { userId } = req.query;
 
-    // Extract necessary fields, including metadata
-    const formattedPayments = payments.data.map(payment => ({
-      id: payment.id,
-      amount: payment.amount,
-      currency: payment.currency,
-      status: payment.status,
-      created: payment.created,
-      metadata: payment.metadata, // Include metadata
-      payment_method: payment.payment_method,
-      description: payment.description,
-    }));
+    // Fetch all Payment Links
+    const allPaymentLinks = await stripe.paymentLinks.list({ limit: 100 });
 
-    res.json({ payments: formattedPayments });
+    // Filter links by user ID in metadata
+    const userPaymentLinks = allPaymentLinks.data.filter(link => 
+      link.metadata && link.metadata.user_id === userId
+    );
+
+    // Fetch payment status for each Payment Link
+    const paymentData = await Promise.all(
+      userPaymentLinks.map(async (link) => {
+        // Fetch Checkout Sessions related to this Payment Link
+        const checkoutSessions = await stripe.checkout.sessions.list({
+          payment_link: link.id,
+          limit: 1, // Get the most recent session
+        });
+
+        let paymentStatus = 'unknown';
+
+        if (checkoutSessions.data.length > 0) {
+          const session = checkoutSessions.data[0];
+
+          if (session.payment_intent) {
+            // Retrieve the Payment Intent status
+            const paymentIntent = await stripe.paymentIntents.retrieve(session.payment_intent);
+            paymentStatus = paymentIntent.status;
+          }
+        }
+
+        return {
+          id: link.id,
+          url: link.url,
+          active: link.active,
+          created: link.created,
+          metadata: link.metadata,
+          cart_summary: JSON.parse(link.metadata.cart_summary || '[]'),
+          order_date: link.metadata.order_date,
+          total_amount: link.metadata.total_amount,
+          payment_status: paymentStatus,
+        };
+      })
+    );
+
+    res.json({ paymentLinks: paymentData });
   } catch (err) {
-    console.error('Error fetching payment history:', err);
-    res.status(500).json({ error: 'Failed to retrieve payment history' });
+    console.error('Error fetching payment links:', err);
+    res.status(500).json({ error: 'Failed to retrieve payment links' });
   }
 });
 
