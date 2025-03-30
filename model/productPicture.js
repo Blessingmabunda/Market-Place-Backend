@@ -1,25 +1,19 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../ds'); // Import the database connection
+const mongoose = require('mongoose');
 
-const ProductPicture = sequelize.define('ProductPicture', {
-    id: {
-        type: DataTypes.INTEGER,
-        primaryKey: true,
-        autoIncrement: true,
-    },
+const ProductPictureSchema = new mongoose.Schema({
     productId: {
-        type: DataTypes.INTEGER,
-        allowNull: false,  // Assuming productId is required
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Product', // Reference to the Product model
+        required: true,
     },
     base64: {
-        type: DataTypes.TEXT, // Use TEXT for larger data (base64)
-        allowNull: false,     // Make base64 required for this case
+        type: String, // Base64 data as a string
+        required: true,
     },
 }, {
-    tableName: 'ProductPicture', // Ensure the table name matches
-    timestamps: true,             // Enable automatic createdAt and updatedAt management
-    createdAt: 'createdAt',       // Custom name for createdAt column (optional)
-    updatedAt: 'updatedAt',       // Custom name for updatedAt column (optional)
+    timestamps: true // Automatically adds createdAt and updatedAt fields
 });
+
+const ProductPicture = mongoose.model('ProductPicture', ProductPictureSchema);
 
 module.exports = ProductPicture;

@@ -1,39 +1,47 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../ds'); // Import the database connection
+const mongoose = require('mongoose');
+const Schema = mongoose.Schema;
 
-const User = sequelize.define('User', {
-  id: { 
-    type: DataTypes.INTEGER, 
-    autoIncrement: true, 
-    primaryKey: true 
+const UserSchema = new Schema({
+  username: {
+    type: String,
+    required: true
   },
-  username: { 
-    type: DataTypes.STRING, 
-    allowNull: false 
+  email: {
+    type: String,
+    required: true,
+    unique: true
   },
-  email: { 
-    type: DataTypes.STRING, 
-    allowNull: false, 
-    unique: true 
+  password: {
+    type: String,
+    required: true
   },
-  password: { 
-    type: DataTypes.STRING, 
-    allowNull: false 
+  profilePicture: {
+    type: String
   },
-  profilePicture: { 
-    type: DataTypes.STRING 
-  },
-  loginHistory: { 
-    type: DataTypes.JSON // Store login timestamps as JSON array
+  loginHistory: {
+    type: [Date],
+    default: []
   }
 }, {
-  tableName: 'users',
-  timestamps: true // Adds createdAt and updatedAt fields
+  timestamps: true // Keeps createdAt and updatedAt fields
 });
 
-// Sync model with database (creates the table if it doesn't exist)
-User.sync()
-  .then(() => console.log('User table created'))
-  .catch(err => console.error('Error creating table:', err));
+// Virtual id getter to match Sequelize's id behavior
+UserSchema.virtual('id').get(function() {
+  return this._id.toString();
+});
+
+// Ensure virtual fields are included when converting to JSON
+UserSchema.set('toJSON', {
+  virtuals: true,
+  transform: (doc, ret) => {
+    ret.id = ret._id.toString();
+    delete ret._id;
+    delete ret.__v;
+    return ret;
+  }
+});
+
+const User = mongoose.model('User', UserSchema);
 
 module.exports = User;

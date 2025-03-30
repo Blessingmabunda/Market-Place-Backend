@@ -1,35 +1,37 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../ds'); // Import the database connection
+const mongoose = require('mongoose');
 
-const Product = sequelize.define('Product', {
+const productSchema = new mongoose.Schema({
     userId: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
     },
     productName: {
-        type: DataTypes.STRING,
-        allowNull: false,
+        type: String,
+        required: true
     },
     price: {
-        type: DataTypes.STRING,
-        allowNull: false,
+        type: String,
+        required: true
     },
     location: {
-        type: DataTypes.STRING,
-        allowNull: false,
+        type: String,
+        required: true
     },
     category: {
-        type: DataTypes.STRING,
-        allowNull: false,
+        type: String,
+        required: true
     },
     username: {
-        type: DataTypes.STRING,
-        allowNull: false,
+        type: String,
+        required: true
     },
     phoneNumber: {
-        type: DataTypes.STRING,
-        allowNull: false,
-    },
-});
+        type: String,
+        required: true
+    }
+}, { timestamps: true });
+
+const Product = mongoose.model('Product', productSchema);
 
 module.exports = Product;

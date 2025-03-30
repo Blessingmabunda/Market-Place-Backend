@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const User = require('../model/User'); // Correct path to User model
+const User = require('../model/User'); // Path remains the same
 
 // Register Route
 router.post('/register', async (req, res) => {
@@ -33,9 +33,8 @@ router.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    const user = await User.findOne({
-      where: { email } // Added where clause for Sequelize
-    });
+    // MongoDB find syntax
+    const user = await User.findOne({ email });
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -51,7 +50,7 @@ router.post('/login', async (req, res) => {
     await user.save();
 
     const token = jwt.sign(
-      { id: user.id, email: user.email, username: user.username }, // Sequelize uses 'id' instead of '_id'
+      { id: user.id, email: user.email, username: user.username },
       'your_jwt_secret',
       { expiresIn: '1h' }
     );
@@ -59,7 +58,7 @@ router.post('/login', async (req, res) => {
     res.status(200).json({
       message: 'Login successful',
       token,
-      userId: user.id.toString(),
+      userId: user.id,
       username: user.username,
       profilePicture: user.profilePicture,
       email: user.email
@@ -74,7 +73,7 @@ router.get('/login-history/:userId', async (req, res) => {
   const { userId } = req.params;
 
   try {
-    const user = await User.findById(userId).select('loginHistory'); // Only select the loginHistory field
+    const user = await User.findById(userId).select('loginHistory');
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -88,7 +87,7 @@ router.get('/login-history/:userId', async (req, res) => {
 // Get All Users Route
 router.get('/users', async (req, res) => {
   try {
-    const users = await User.find({}).select('-password'); // Exclude the password field
+    const users = await User.find().select('-password');
     res.status(200).json(users);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching users', error });
@@ -98,7 +97,7 @@ router.get('/users', async (req, res) => {
 // Delete All Users Route
 router.delete('/users', async (req, res) => {
   try {
-    await User.deleteMany({}); // Deletes all users from the database
+    await User.deleteMany({});
     res.status(200).json({ message: 'All users deleted successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Error deleting users', error });
@@ -108,22 +107,22 @@ router.delete('/users', async (req, res) => {
 // Change Password Route
 router.put('/change-password', async (req, res) => {
   try {
-      const { userId, currentPassword, newPassword, confirmPassword } = req.body;
-      if (newPassword !== confirmPassword) {
-          return res.status(400).json({ message: 'New passwords do not match' });
-      }
+    const { userId, currentPassword, newPassword, confirmPassword } = req.body;
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({ message: 'New passwords do not match' });
+    }
 
-      const user = await User.findByPk(userId);
-      if (!user) return res.status(404).json({ message: 'User not found' });
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: 'User not found' });
 
-      const isMatch = await bcrypt.compare(currentPassword, user.password);
-      if (!isMatch) return res.status(400).json({ message: 'Current password is incorrect' });
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) return res.status(400).json({ message: 'Current password is incorrect' });
 
-      user.password = await bcrypt.hash(newPassword, 10);
-      await user.save();
-      res.json({ message: 'Password changed successfully' });
+    user.password = await bcrypt.hash(newPassword, 10);
+    await user.save();
+    res.json({ message: 'Password changed successfully' });
   } catch (err) {
-      res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -174,9 +173,7 @@ router.post('/reset-password', async (req, res) => {
   }
 });
 
-
-
-
+// Update Profile Route
 router.put('/updateProfile', async (req, res) => {
   try {
     const { id, username, email, profilePicture } = req.body;
@@ -187,7 +184,7 @@ router.put('/updateProfile', async (req, res) => {
     }
 
     // Find the user by ID
-    const user = await User.findByPk(id);
+    const user = await User.findById(id);
 
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
@@ -208,15 +205,13 @@ router.put('/updateProfile', async (req, res) => {
   }
 });
 
+// Get Profile Picture Route
 router.get('/profile-picture/:userId', async (req, res) => {
   const userId = req.params.userId;
 
   try {
     // Fetch user by ID
-    const user = await User.findOne({
-      where: { id: userId },
-      attributes: ['profilePicture'] // Only retrieve profilePicture
-    });
+    const user = await User.findById(userId).select('profilePicture');
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -231,6 +226,5 @@ router.get('/profile-picture/:userId', async (req, res) => {
     return res.status(500).json({ message: 'Server error' });
   }
 });
-
 
 module.exports = router;

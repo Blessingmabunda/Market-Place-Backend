@@ -1,11 +1,10 @@
 const express = require('express');
-const mysql = require('mysql2');
 const multer = require('multer');
 const cors = require('cors');
-const { Sequelize } = require('sequelize');  // Import Sequelize
+const mongoose = require('mongoose');
 require('dotenv').config(); // Load environment variables from .env file
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
-const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET; // Use environment variable for webhook secret
+const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
 // Import routes
 const userRoutes = require('./routes/User'); 
@@ -25,42 +24,14 @@ app.use(cors({ origin: '*' })); // Adjust for production security
 app.use(express.json({ limit: '100000mb' }));
 app.use(express.urlencoded({ limit: '100mb', extended: true }));
 
-// Set up Sequelize connection
-const sequelize = new Sequelize(
-  process.env.DB_NAME, 
-  process.env.DB_USER, 
-  process.env.DB_PASS, 
-  {
-    host: process.env.DB_HOST,
-    dialect: 'mysql',
-  }
-);
-
-// Sync the database (ensure models are defined before this step)
-sequelize.sync({ alter: true })
+// MongoDB connection using mongoose
+mongoose.connect('mongodb+srv://blessie999:Mabunda@blessingapi.vbplv.mongodb.net/blessAPI?retryWrites=true&w=majority&appName=BlessingAPI', {})
   .then(() => {
-    console.log('Database synced');
+    console.log('Connected to MongoDB');
   })
-  .catch((err) => {
-    console.error('Error syncing database:', err);
+  .catch((error) => {
+    console.error('Error connecting to MongoDB:', error);
   });
-
-// Set up MySQL connection (if you still need it alongside Sequelize)
-const db = mysql.createConnection({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASS, 
-  database: process.env.DB_NAME
-});
-
-// Connect to MySQL
-db.connect(err => {
-  if (err) {
-    console.error('Error connecting to MySQL:', err);
-    return;
-  }
-  console.log('Connected to MySQL database');
-});
 
 // Configure Multer for file uploads
 const storage = multer.diskStorage({
@@ -112,17 +83,16 @@ app.post('/create-payment-link', async (req, res) => {
     }
 
     // **Attach metadata to the PaymentIntent**
- const paymentLink = await stripe.paymentLinks.create({
-  line_items: lineItems,
-  metadata: {
-    user_id: user_info.user_id,
-    name: user_info.name,
-    total_amount: total_amount.toString(),
-    order_date: order_date,
-    cart_summary: JSON.stringify(cart_items),
-  },
-});
-
+    const paymentLink = await stripe.paymentLinks.create({
+      line_items: lineItems,
+      metadata: {
+        user_id: user_info.user_id,
+        name: user_info.name,
+        total_amount: total_amount.toString(),
+        order_date: order_date,
+        cart_summary: JSON.stringify(cart_items),
+      },
+    });
 
     res.json({ paymentLink: paymentLink.url });
   } catch (err) {
@@ -130,10 +100,10 @@ app.post('/create-payment-link', async (req, res) => {
     res.status(500).json({ error: 'Failed to create payment link' });
   }
 });
+
 app.get('/get-all-payment-links-metadata', async (req, res) => {
   try {
     // List all payment links
-    // You can add optional parameters like limit
     const paymentLinks = await stripe.paymentLinks.list({
       limit: 100, // Adjust as needed
     });
@@ -151,6 +121,7 @@ app.get('/get-all-payment-links-metadata', async (req, res) => {
     res.status(500).json({ error: 'Failed to retrieve payment links metadata' });
   }
 });
+
 app.get('/get-payment-links-by-user', async (req, res) => {
   try {
     const { userId } = req.query;
@@ -205,68 +176,6 @@ app.get('/get-payment-links-by-user', async (req, res) => {
   }
 });
 
-app.get('/get-payment-links-by-user', async (req, res) => {
-  try {
-    // Get userId from query parameter
-    const { userId } = req.query;
-    
-    if (!userId) {
-      return res.status(400).json({ error: 'Missing userId parameter' });
-    }
-    
-    // List all payment links
-    const paymentLinks = await stripe.paymentLinks.list({
-      limit: 100, // Adjust as needed
-    });
-    
-    // Filter links by user_id in metadata (note the underscore)
-    const userPaymentLinks = paymentLinks.data.filter(link => 
-      link.metadata && link.metadata.user_id === userId
-    );
-    
-    // Extract relevant data including cart summary
-    const metadataCollection = userPaymentLinks.map(link => {
-      // Safely handle cart_summary parsing
-      let cartSummary = [];
-      try {
-        if (link.metadata.cart_summary) {
-          cartSummary = JSON.parse(link.metadata.cart_summary);
-        }
-      } catch (e) {
-        console.error('Error parsing cart_summary:', e);
-        cartSummary = link.metadata.cart_summary; // Keep as string if parsing fails
-      }
-      
-      // Safe date formatting
-      let createdDate = null;
-      try {
-        if (link.created) {
-          createdDate = new Date(link.created * 1000).toISOString();
-        }
-      } catch (e) {
-        console.error('Error formatting date:', e);
-        createdDate = link.created; // Keep original value if conversion fails
-      }
-      
-      return {
-        id: link.id,
-        url: link.url,
-        active: link.active,
-        created: createdDate,
-        metadata: link.metadata,
-        cart_summary: cartSummary,
-        order_date: link.metadata.order_date,
-        total_amount: link.metadata.total_amount
-      };
-    });
-    
-    res.json({ paymentLinks: metadataCollection });
-  } catch (err) {
-    console.error('Error retrieving payment links:', err);
-    res.status(500).json({ error: 'Failed to retrieve payment links for user', message: err.message });
-  }
-});
-
 app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
   const sig = req.headers['stripe-signature'];
 
@@ -298,18 +207,6 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
 
   // Acknowledge receipt of the event
   res.json({ received: true });
-});
-
-
-// Example API Route using MySQL
-app.get('/api/users', (req, res) => {
-  db.query('SELECT * FROM users', (err, results) => {
-    if (err) {
-      console.error('Error fetching users:', err);
-      return res.status(500).json({ error: 'Database query failed' });
-    }
-    res.json(results);
-  });
 });
 
 // File upload route

@@ -1,15 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const Product = require('../model/products'); // Import the Product model
-const sequelize = require('../ds');
 
 // ✅ Route to create a new product
 router.post('/products', async (req, res) => {
   try {
     const { username, userId, productName, price, location, category, phoneNumber } = req.body;
-
-    // ✅ Correct Sequelize create method
-    const product = await Product.create({
+    const product = new Product({
       userId,
       productName,
       price,
@@ -18,7 +15,7 @@ router.post('/products', async (req, res) => {
       username,
       phoneNumber
     });
-
+    await product.save();
     res.status(201).json(product);
   } catch (error) {
     console.error('Error saving product:', error);
@@ -29,7 +26,7 @@ router.post('/products', async (req, res) => {
 // ✅ Route to get all products
 router.get('/get-all-products', async (req, res) => {
   try {
-    const products = await Product.findAll();  // ✅ Fixed to use findAll()
+    const products = await Product.find();
     res.status(200).json(products);
   } catch (error) {
     console.error('Error fetching products:', error);
@@ -40,7 +37,7 @@ router.get('/get-all-products', async (req, res) => {
 // ✅ Route to get a product by ID
 router.get('/products/:id', async (req, res) => {
   try {
-    const product = await Product.findByPk(req.params.id);  // ✅ Fixed to use findByPk()
+    const product = await Product.findById(req.params.id);
     if (!product) {
       return res.status(404).json({ error: 'Product not found' });
     }
@@ -54,17 +51,19 @@ router.get('/products/:id', async (req, res) => {
 router.put('/products/:id', async (req, res) => {
   try {
     const { productName, price, location, category, phoneNumber } = req.body;
+    const product = await Product.findByIdAndUpdate(req.params.id, {
+      productName,
+      price,
+      location,
+      category,
+      phoneNumber
+    }, { new: true });
 
-    const [updatedRows] = await Product.update(
-      { productName, price, location, category, phoneNumber },
-      { where: { id: req.params.id } }  // ✅ Fixed to use where
-    );
-
-    if (updatedRows === 0) {
+    if (!product) {
       return res.status(404).json({ error: 'Product not found or no changes made' });
     }
 
-    res.status(200).json({ message: 'Product updated successfully' });
+    res.status(200).json({ message: 'Product updated successfully', product });
   } catch (error) {
     res.status(500).json({ error: 'Failed to update product' });
   }
@@ -73,12 +72,10 @@ router.put('/products/:id', async (req, res) => {
 // ✅ Route to delete a product by ID
 router.delete('/products/:id', async (req, res) => {
   try {
-    const deletedRows = await Product.destroy({ where: { id: req.params.id } });  // ✅ Fixed to use destroy()
-    
-    if (deletedRows === 0) {
+    const product = await Product.findByIdAndDelete(req.params.id);
+    if (!product) {
       return res.status(404).json({ error: 'Product not found' });
     }
-
     res.status(200).json({ message: 'Product deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete product' });
@@ -88,7 +85,7 @@ router.delete('/products/:id', async (req, res) => {
 // ✅ Route to delete all products
 router.delete('/delete-all-products', async (req, res) => {
   try {
-    await Product.destroy({ where: {} });  // ✅ Fixed to use destroy()
+    await Product.deleteMany();
     res.status(200).json({ message: 'All products deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete all products' });
@@ -98,17 +95,10 @@ router.delete('/delete-all-products', async (req, res) => {
 // ✅ Route to get products by userId
 router.get('/products/user/:userId', async (req, res) => {
   try {
-    const userId = parseInt(req.params.userId, 10);
-    if (isNaN(userId)) {
-      return res.status(400).json({ error: 'Invalid userId format' });
-    }
-
-    const products = await Product.findAll({ where: { userId } });
-
+    const products = await Product.find({ userId: req.params.userId });
     if (products.length === 0) {
       return res.status(404).json({ error: 'No products found for this user.' });
     }
-
     res.status(200).json(products);
   } catch (error) {
     console.error('Error fetching products by userId:', error);
@@ -120,17 +110,13 @@ router.get('/products/user/:userId', async (req, res) => {
 router.put('/products/user/:userId', async (req, res) => {
   try {
     const { productName, price, location, category, phoneNumber } = req.body;
-    const userId = parseInt(req.params.userId, 10);
-
-    const [updatedRows] = await Product.update(
-      { productName, price, location, category, phoneNumber },
-      { where: { userId } }  // ✅ Fixed to use where
+    const products = await Product.updateMany(
+      { userId: req.params.userId },
+      { productName, price, location, category, phoneNumber }
     );
-
-    if (updatedRows === 0) {
+    if (products.matchedCount === 0) {
       return res.status(404).json({ error: 'No products found for this user or no changes made' });
     }
-
     res.status(200).json({ message: 'Products updated successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to update products by userId' });
