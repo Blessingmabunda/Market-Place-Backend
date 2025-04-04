@@ -5,7 +5,7 @@ const Product = require('../model/products'); // Import the Product model
 // ✅ Route to create a new product
 router.post('/products', async (req, res) => {
   try {
-    const { username, userId, productName, price, location, category, phoneNumber } = req.body;
+    const { username, userId, productName, price, location, category, phoneNumber, base64 } = req.body;
     const product = new Product({
       userId,
       productName,
@@ -13,7 +13,8 @@ router.post('/products', async (req, res) => {
       location,
       category,
       username,
-      phoneNumber
+      phoneNumber,
+      base64
     });
     await product.save();
     res.status(201).json(product);
@@ -50,13 +51,14 @@ router.get('/products/:id', async (req, res) => {
 // ✅ Route to update a product by ID
 router.put('/products/:id', async (req, res) => {
   try {
-    const { productName, price, location, category, phoneNumber } = req.body;
+    const { productName, price, location, category, phoneNumber, base64 } = req.body;
     const product = await Product.findByIdAndUpdate(req.params.id, {
       productName,
       price,
       location,
       category,
-      phoneNumber
+      phoneNumber,
+      base64
     }, { new: true });
 
     if (!product) {
@@ -109,10 +111,10 @@ router.get('/products/user/:userId', async (req, res) => {
 // ✅ Route to update products by userId
 router.put('/products/user/:userId', async (req, res) => {
   try {
-    const { productName, price, location, category, phoneNumber } = req.body;
+    const { productName, price, location, category, phoneNumber, base64 } = req.body;
     const products = await Product.updateMany(
       { userId: req.params.userId },
-      { productName, price, location, category, phoneNumber }
+      { productName, price, location, category, phoneNumber, base64 }
     );
     if (products.matchedCount === 0) {
       return res.status(404).json({ error: 'No products found for this user or no changes made' });
@@ -120,6 +122,41 @@ router.put('/products/user/:userId', async (req, res) => {
     res.status(200).json({ message: 'Products updated successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to update products by userId' });
+  }
+});
+
+// Function to compress base64 image
+const compressBase64 = async (base64String) => {
+  try {
+      const buffer = Buffer.from(base64String, 'base64');
+      const compressedBuffer = await sharp(buffer)
+          .resize({ width: 500 }) // Adjust width as needed
+          .jpeg({ quality: 50 }) // Adjust quality as needed
+          .toBuffer();
+      return compressedBuffer.toString('base64');
+  } catch (error) {
+      console.error('Error compressing image:', error);
+      return base64String; // Return original if compression fails
+  }
+};
+
+// GET products by category (only productName, price, and compressed base64)
+router.get('/products/category/:category', async (req, res) => {
+  try {
+      const { category } = req.params;
+      let products = await Product.find({ category }).select('productName price base64');
+      
+      // Compress base64 images
+      products = await Promise.all(products.map(async (product) => {
+          if (product.base64) {
+              product.base64 = await compressBase64(product.base64);
+          }
+          return product;
+      }));
+      
+      res.json(products);
+  } catch (error) {
+      res.status(500).json({ error: 'Server error' });
   }
 });
 

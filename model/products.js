@@ -29,6 +29,10 @@ const productSchema = new mongoose.Schema({
     phoneNumber: {
         type: String,
         required: true
+    },
+    base64: {
+        type: String,
+        required: false
     }
 }, { timestamps: true });
 
